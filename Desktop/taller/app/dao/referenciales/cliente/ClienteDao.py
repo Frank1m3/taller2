@@ -1,6 +1,5 @@
 from flask import current_app as app
 from app.conexion.Conexion import Conexion
-from datetime import datetime
 
 class ClienteDao:
 
@@ -9,15 +8,12 @@ class ClienteDao:
         SELECT id_cliente, id_persona, nombre, apellido, cedula, direccion, telefono, fecha_registro
         FROM clientes
         """
-        # objeto conexion
         conexion = Conexion()
         con = conexion.getConexion()
         cur = con.cursor()
         try:
             cur.execute(clienteSQL)
-            # trae datos de la bd
             lista_clientes = cur.fetchall()
-            # retorno los datos
             lista_ordenada = []
             for item in lista_clientes:
                 lista_ordenada.append({
@@ -28,7 +24,7 @@ class ClienteDao:
                     "cedula": item[4],
                     "direccion": item[5],
                     "telefono": item[6],
-                    "fecha_registro": item[7]
+                    "fecha_registro": item[7].strftime("%Y-%m-%d %H:%M:%S") if item[7] else None
                 })
             return lista_ordenada
         except con.Error as e:
@@ -42,15 +38,12 @@ class ClienteDao:
         SELECT id_cliente, id_persona, nombre, apellido, cedula, direccion, telefono, fecha_registro
         FROM clientes WHERE id_cliente=%s
         """
-        # objeto conexion
         conexion = Conexion()
         con = conexion.getConexion()
         cur = con.cursor()
         try:
             cur.execute(clienteSQL, (id_cliente,))
-            # trae datos de la bd
             clienteEncontrado = cur.fetchone()
-            # retorno los datos
             if clienteEncontrado:
                 return {
                     "id_cliente": clienteEncontrado[0],
@@ -60,7 +53,7 @@ class ClienteDao:
                     "cedula": clienteEncontrado[4],
                     "direccion": clienteEncontrado[5],
                     "telefono": clienteEncontrado[6],
-                    "fecha_registro": clienteEncontrado[7]
+                    "fecha_registro": clienteEncontrado[7].strftime("%Y-%m-%d %H:%M:%S") if clienteEncontrado[7] else None
                 }
             return None
         except con.Error as e:
@@ -69,34 +62,16 @@ class ClienteDao:
             cur.close()
             con.close()
 
-    def validarFecha(self, fecha_str):
-        """Función para validar el formato de fecha."""
-        try:
-            # Intenta parsear la fecha con el formato esperado
-            return datetime.strptime(fecha_str, "%Y-%m-%dT%H:%M:%S")
-        except ValueError:
-            # Si el formato no es válido, retorna None
-            return None
-
-    def guardarCliente(self, nombre, apellido, cedula, direccion, telefono, fecha_registro):
+    def guardarCliente(self, nombre, apellido, cedula, direccion, telefono):
         insertClienteSQL = """
-        INSERT INTO clientes( nombre, apellido, cedula, direccion, telefono, fecha_registro)
-        VALUES ( %s, %s, %s, %s, %s, %s)
+        INSERT INTO clientes(nombre, apellido, cedula, direccion, telefono)
+        VALUES (%s, %s, %s, %s, %s)
         """
-
-        # Validar formato de fecha
-        fecha_objeto = self.validarFecha(fecha_registro)
-        if not fecha_objeto:
-            return False, 'El formato de fecha_registro es incorrecto. Asegúrese de usar el formato "YYYY-MM-DDTHH:MM:SS".'
-
         conexion = Conexion()
         con = conexion.getConexion()
         cur = con.cursor()
-
-        # Ejecucion exitosa
         try:
-            cur.execute(insertClienteSQL, ( nombre, apellido, cedula, direccion, telefono, fecha_objeto))
-            # se confirma la insercion
+            cur.execute(insertClienteSQL, (nombre, apellido, cedula, direccion, telefono))
             con.commit()
             return True, None
         except con.Error as e:
@@ -107,26 +82,17 @@ class ClienteDao:
 
         return False, 'Error al guardar el cliente.'
 
-    def updateCliente(self, id_cliente, nombre, apellido, cedula, direccion, telefono, fecha_registro):
+    def updateCliente(self, id_cliente, nombre, apellido, cedula, direccion, telefono):
         updateClienteSQL = """
         UPDATE clientes
-        SET nombre=%s, apellido=%s, cedula=%s, direccion=%s, telefono=%s, fecha_registro=%s
+        SET nombre=%s, apellido=%s, cedula=%s, direccion=%s, telefono=%s
         WHERE id_cliente=%s
         """
-
-        # Validar formato de fecha
-        fecha_objeto = self.validarFecha(fecha_registro)
-        if not fecha_objeto:
-            return False, 'El formato de fecha_registro es incorrecto. Asegúrese de usar el formato "YYYY-MM-DDTHH:MM:SS".'
-
         conexion = Conexion()
         con = conexion.getConexion()
         cur = con.cursor()
-
-        # Ejecucion exitosa
         try:
-            cur.execute(updateClienteSQL, (nombre, apellido, cedula, direccion, telefono, fecha_objeto, id_cliente))
-            # se confirma la insercion
+            cur.execute(updateClienteSQL, (nombre, apellido, cedula, direccion, telefono, id_cliente))
             con.commit()
             return True, None
         except con.Error as e:
@@ -142,15 +108,11 @@ class ClienteDao:
         DELETE FROM clientes
         WHERE id_cliente=%s
         """
-
         conexion = Conexion()
         con = conexion.getConexion()
         cur = con.cursor()
-
-        # Ejecucion exitosa
         try:
             cur.execute(deleteClienteSQL, (id_cliente,))
-            # se confirma la eliminación
             con.commit()
             return True, None
         except con.Error as e:

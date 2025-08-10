@@ -4,133 +4,123 @@ from app.conexion.Conexion import Conexion
 class ProveedorDao:
 
     def getProveedores(self):
-        proveedorSQL = """
-        SELECT id_proveedor, ruc, razon_social, registro, estado
+        sql = """
+        SELECT id_proveedor, ruc, razon_social, registro, estado, telefono
         FROM proveedores
+        ORDER BY id_proveedor
         """
-        # objeto conexion
         conexion = Conexion()
         con = conexion.getConexion()
         cur = con.cursor()
         try:
-            cur.execute(proveedorSQL)
-            # trae datos de la bd
-            lista_proveedores = cur.fetchall()
-            # retorno los datos
-            lista_ordenada = []
-            for item in lista_proveedores:
-                lista_ordenada.append({
+            cur.execute(sql)
+            proveedores = cur.fetchall()
+            lista = []
+            for item in proveedores:
+                registro_str = item[3].strftime('%Y-%m-%d') if item[3] else None
+                lista.append({
                     "id_proveedor": item[0],
                     "ruc": item[1],
                     "razon_social": item[2],
-                    "registro": item[3],
-                    "estado": item[4]  
+                    "registro": registro_str,
+                    "estado": item[4],
+                    "telefono": item[5]
                 })
-            return lista_ordenada
-        except con.Error as e:
-            app.logger.info(e)
+            return lista
+        except Exception as e:
+            app.logger.error(f"Error en getProveedores: {e}")
+            return []
         finally:
             cur.close()
             con.close()
 
     def getProveedorById(self, id_proveedor):
-        proveedorSQL = """
-        SELECT id_proveedor, ruc, razon_social, registro, estado
-        FROM proveedores WHERE id_proveedor=%s
+        sql = """
+        SELECT id_proveedor, ruc, razon_social, registro, estado, telefono
+        FROM proveedores WHERE id_proveedor = %s
         """
-        # objeto conexion
         conexion = Conexion()
         con = conexion.getConexion()
         cur = con.cursor()
         try:
-            cur.execute(proveedorSQL, (id_proveedor,))
-            # trae datos de la bd
-            proveedorEncontrado = cur.fetchone()
-            # retorno los datos
-            if proveedorEncontrado:
+            cur.execute(sql, (id_proveedor,))
+            p = cur.fetchone()
+            if p:
+                registro_str = p[3].strftime('%Y-%m-%d') if p[3] else None
                 return {
-                    "id_proveedor": proveedorEncontrado[0],
-                    "ruc": proveedorEncontrado[1],
-                    "razon_social": proveedorEncontrado[2],
-                    "registro": proveedorEncontrado[3],
-                    "estado": proveedorEncontrado[4]  
+                    "id_proveedor": p[0],
+                    "ruc": p[1],
+                    "razon_social": p[2],
+                    "registro": registro_str,
+                    "estado": p[4],
+                    "telefono": p[5]
                 }
             return None
-        except con.Error as e:
-            app.logger.info(e)
+        except Exception as e:
+            app.logger.error(f"Error en getProveedorById: {e}")
+            return None
         finally:
             cur.close()
             con.close()
 
-    def guardarProveedor(self, ruc, razon_social, registro, estado):
-        insertProveedorSQL = """
-        INSERT INTO proveedores(ruc, razon_social, registro, estado)
+    def guardarProveedor(self, ruc, razon_social, estado, telefono):
+        # registro NO se envía, se genera automáticamente en la BD con default now()
+        sql = """
+        INSERT INTO proveedores (ruc, razon_social, estado, telefono)
         VALUES (%s, %s, %s, %s)
         """
-
         conexion = Conexion()
         con = conexion.getConexion()
         cur = con.cursor()
-
-        # Ejecucion exitosa
         try:
-            cur.execute(insertProveedorSQL, (ruc, razon_social, registro, estado))
-            # se confirma la insercion
+            cur.execute(sql, (ruc, razon_social, estado, telefono))
             con.commit()
             return True
-        except con.Error as e:
-            app.logger.info(e)
+        except Exception as e:
+            app.logger.error(f"Error en guardarProveedor: {e}")
+            con.rollback()
+            return False
         finally:
             cur.close()
             con.close()
 
-        return False
-
-    def updateProveedor(self, id_proveedor, ruc, razon_social, registro, estado):
-        updateProveedorSQL = """
+    def updateProveedor(self, id_proveedor, ruc, razon_social, estado, telefono):
+        sql = """
         UPDATE proveedores
-        SET ruc=%s, razon_social=%s, registro=%s, estado=%s
-        WHERE id_proveedor=%s
+        SET ruc = %s,
+            razon_social = %s,
+            estado = %s,
+            telefono = %s
+        WHERE id_proveedor = %s
         """
-
         conexion = Conexion()
         con = conexion.getConexion()
         cur = con.cursor()
-
-        # Ejecucion exitosa
         try:
-            cur.execute(updateProveedorSQL, (ruc, razon_social, registro, estado, id_proveedor))
-            # se confirma la insercion
+            cur.execute(sql, (ruc, razon_social, estado, telefono, id_proveedor))
             con.commit()
-            return True
-        except con.Error as e:
-            app.logger.info(e)
+            return cur.rowcount > 0
+        except Exception as e:
+            app.logger.error(f"Error en updateProveedor: {e}")
+            con.rollback()
+            return False
         finally:
             cur.close()
             con.close()
-
-        return False
 
     def deleteProveedor(self, id_proveedor):
-        deleteProveedorSQL = """
-        DELETE FROM proveedores
-        WHERE id_proveedor=%s
-        """
-
+        sql = "DELETE FROM proveedores WHERE id_proveedor = %s"
         conexion = Conexion()
         con = conexion.getConexion()
         cur = con.cursor()
-
-        # Ejecucion exitosa
         try:
-            cur.execute(deleteProveedorSQL, (id_proveedor,))
-            # se confirma la eliminación
+            cur.execute(sql, (id_proveedor,))
             con.commit()
-            return True
-        except con.Error as e:
-            app.logger.info(e)
+            return cur.rowcount > 0
+        except Exception as e:
+            app.logger.error(f"Error en deleteProveedor: {e}")
+            con.rollback()
+            return False
         finally:
             cur.close()
             con.close()
-
-        return False

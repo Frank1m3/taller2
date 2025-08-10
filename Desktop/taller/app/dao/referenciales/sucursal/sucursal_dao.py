@@ -1,137 +1,85 @@
-# Data access object - DAO
 from flask import current_app as app
 from app.conexion.Conexion import Conexion
 
 class SucursalDao:
 
-    def get_sucursales(self):
-
-        sucursal_sql = """
-        SELECT
-            s.id_sucursal,
-            s.descripcion AS nombre_sucursal
-        FROM
-            sucursales s
-        WHERE
-            EXISTS (
-                SELECT 1
-                FROM sucursal_depositos sd
-                WHERE sd.id_sucursal = s.id_sucursal
-            )
+    def getSucursales(self):
+        sucursalSQL = """
+        SELECT id_sucursal, descripcion
+        FROM sucursales
+        ORDER BY id_sucursal
         """
-        # objeto conexion
         conexion = Conexion()
         con = conexion.getConexion()
         cur = con.cursor()
         try:
-            cur.execute(sucursal_sql)
-            sucursales = cur.fetchall() # trae datos de la bd
-
-            # Transformar los datos en una lista de diccionarios
-            return [{'id': sucursal[0], 'descripcion': sucursal[1]} for sucursal in sucursales]
-
+            cur.execute(sucursalSQL)
+            lista_sucursales = cur.fetchall()
+            lista_ordenada = []
+            for item in lista_sucursales:
+                lista_ordenada.append({
+                    "id_sucursal": item[0],
+                    "descripcion": item[1]
+                })
+            return lista_ordenada
         except Exception as e:
-            app.logger.error(f"Error al obtener todas las sucursales: {str(e)}")
+            app.logger.error(f"Error al obtener sucursales: {e}")
             return []
-
         finally:
             cur.close()
             con.close()
 
-    def get_sucursal_depositos(self, id_sucursal: int):
-
-        sucursal_sql = """
-        SELECT
-            sd.id_deposito
-            , d.descripcion nombre_deposito
-        FROM
-            sucursal_depositos sd
-        LEFT JOIN depositos d
-            ON sd.id_deposito = d.id_deposito
-        WHERE
-            sd.id_sucursal = %s AND sd.estado = true
+    def getSucursalById(self, id_sucursal):
+        sucursalSQL = """
+        SELECT id_sucursal, descripcion
+        FROM sucursales WHERE id_sucursal=%s
         """
-        # objeto conexion
         conexion = Conexion()
         con = conexion.getConexion()
         cur = con.cursor()
         try:
-            cur.execute(sucursal_sql, (id_sucursal,))
-            sucursales = cur.fetchall() # trae datos de la bd
-
-            # Transformar los datos en una lista de diccionarios
-            return [{'id_deposito': sucursal[0], 'nombre_deposito': sucursal[1]} for sucursal in sucursales]
-
-        except Exception as e:
-            app.logger.error(f"Error al obtener las sucursales con depositos: {str(e)}")
-            return []
-
-        finally:
-            cur.close()
-            con.close()
-
-    def getCiudadById(self, id):
-
-        ciudadSQL = """
-        SELECT id, descripcion
-        FROM ciudades WHERE id=%s
-        """
-        # objeto conexion
-        conexion = Conexion()
-        con = conexion.getConexion()
-        cur = con.cursor()
-        try:
-            cur.execute(ciudadSQL, (id,))
-            ciudadEncontrada = cur.fetchone() # Obtener una sola fila
-            if ciudadEncontrada:
+            cur.execute(sucursalSQL, (id_sucursal,))
+            sucursalEncontrada = cur.fetchone()
+            if sucursalEncontrada:
                 return {
-                        "id": ciudadEncontrada[0],
-                        "descripcion": ciudadEncontrada[1]
-                    }  # Retornar los datos de la ciudad
-            else:
-                return None # Retornar None si no se encuentra la ciudad
-        except Exception as e:
-            app.logger.error(f"Error al obtener ciudad: {str(e)}")
+                    "id_sucursal": sucursalEncontrada[0],
+                    "descripcion": sucursalEncontrada[1]
+                }
             return None
-
+        except Exception as e:
+            app.logger.error(f"Error al obtener sucursal por ID: {e}")
+            return None
         finally:
             cur.close()
             con.close()
 
-    def guardarCiudad(self, descripcion):
-
-        insertCiudadSQL = """
-        INSERT INTO ciudades(descripcion) VALUES(%s) RETURNING id
+    def guardarSucursal(self, descripcion):
+        insertSucursalSQL = """
+        INSERT INTO sucursales(descripcion)
+        VALUES (%s)
         """
 
         conexion = Conexion()
         con = conexion.getConexion()
         cur = con.cursor()
 
-        # Ejecucion exitosa
         try:
-            cur.execute(insertCiudadSQL, (descripcion,))
-            ciudad_id = cur.fetchone()[0]
-            con.commit() # se confirma la insercion
-            return ciudad_id
-
-        # Si algo fallo entra aqui
+            cur.execute(insertSucursalSQL, (descripcion,))
+            con.commit()
+            return True
         except Exception as e:
-            app.logger.error(f"Error al insertar ciudad: {str(e)}")
-            con.rollback() # retroceder si hubo error
+            app.logger.error(f"Error al insertar sucursal: {e}")
+            con.rollback()
             return False
-
-        # Siempre se va ejecutar
         finally:
             cur.close()
             con.close()
 
-    def updateCiudad(self, id, descripcion):
-
-        updateCiudadSQL = """
-        UPDATE ciudades
+    def updateSucursal(self, id_sucursal, descripcion):
+        updateSucursalSQL = """
+        UPDATE sucursales
         SET descripcion=%s
-        WHERE id=%s
+        WHERE id_sucursal=%s
         """
 
         conexion = Conexion()
@@ -139,26 +87,21 @@ class SucursalDao:
         cur = con.cursor()
 
         try:
-            cur.execute(updateCiudadSQL, (descripcion, id,))
-            filas_afectadas = cur.rowcount # Obtener el número de filas afectadas
+            cur.execute(updateSucursalSQL, (descripcion, id_sucursal))
             con.commit()
-
-            return filas_afectadas > 0 # Retornar True si se actualizó al menos una fila
-
+            return cur.rowcount > 0
         except Exception as e:
-            app.logger.error(f"Error al actualizar ciudad: {str(e)}")
+            app.logger.error(f"Error al actualizar sucursal: {e}")
             con.rollback()
             return False
-
         finally:
             cur.close()
             con.close()
 
-    def deleteCiudad(self, id):
-
-        updateCiudadSQL = """
-        DELETE FROM ciudades
-        WHERE id=%s
+    def deleteSucursal(self, id_sucursal):
+        deleteSucursalSQL = """
+        DELETE FROM sucursales
+        WHERE id_sucursal=%s
         """
 
         conexion = Conexion()
@@ -166,17 +109,37 @@ class SucursalDao:
         cur = con.cursor()
 
         try:
-            cur.execute(updateCiudadSQL, (id,))
-            rows_affected = cur.rowcount
+            cur.execute(deleteSucursalSQL, (id_sucursal,))
             con.commit()
-
-            return rows_affected > 0  # Retornar True si se eliminó al menos una fila
-
+            return cur.rowcount > 0
         except Exception as e:
-            app.logger.error(f"Error al eliminar ciudad: {str(e)}")
+            app.logger.error(f"Error al eliminar sucursal: {e}")
             con.rollback()
             return False
+        finally:
+            cur.close()
+            con.close()
 
+    def getDepositosPorSucursal(self, id_sucursal):
+        # Obtiene depósitos activos relacionados a una sucursal
+        sql = """
+        SELECT sd.id_deposito
+        FROM sucursal_depositos sd
+        WHERE sd.id_sucursal = %s AND sd.estado = true
+        ORDER BY sd.id_deposito
+        """
+        conexion = Conexion()
+        con = conexion.getConexion()
+        cur = con.cursor()
+        try:
+            cur.execute(sql, (id_sucursal,))
+            depositos = cur.fetchall()
+            # Retornamos lista de IDs de depósitos
+            lista_depositos = [row[0] for row in depositos]
+            return lista_depositos
+        except Exception as e:
+            app.logger.error(f"Error al obtener depósitos de la sucursal {id_sucursal}: {e}")
+            return []
         finally:
             cur.close()
             con.close()

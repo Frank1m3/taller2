@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, current_app as app
 from app.dao.referenciales.apertura.AperturaDao import AperturaDao
-
+from datetime import datetime
 
 aperapi = Blueprint('aperapi', __name__)
 
@@ -25,7 +25,6 @@ def getAperturas():
             'success': False,
             'error': 'Ocurrió un error interno. Consulte con el administrador.'
         }), 500
-
 
 
 @aperapi.route('/aperturas/<int:id_apertura>', methods=['GET'])
@@ -54,7 +53,6 @@ def getApertura(id_apertura):
             'error': 'Ocurrió un error interno. Consulte con el administrador.'
         }), 500
    
-        
 
 @aperapi.route('/aperturas', methods=['POST'])
 def addApertura():
@@ -65,7 +63,7 @@ def addApertura():
     campos_requeridos = ['clave_fiscal', 'cajero', 'monto_inicial']
 
     for campo in campos_requeridos:
-        if campo not in data or data[campo] is None or len(data[campo].strip()) == 0:
+        if campo not in data or data[campo] is None or len(str(data[campo]).strip()) == 0:
             return jsonify({
                 'success': False,
                 'error': f'El campo {campo} es obligatorio y no puede estar vacío.'
@@ -85,14 +83,19 @@ def addApertura():
                 'error': 'No se pudo realizar la apertura, verifique los datos ingresados.'
             }), 400  # Si no se pudo insertar, error 400
 
-        # Si la apertura se guarda exitosamente, devolver el id generado
+        # Obtener apertura guardada para traer el nro_turno y fecha registro actualizada
+        apertura = aperturadao.getAperturaById(result['id_apertura'])
+
+        # Si la apertura se guarda exitosamente, devolver el id generado + datos útiles
         return jsonify({
             'success': True,
             'data': {
                 'id_apertura': result['id_apertura'],  # ID generado por la base de datos
                 'clave_fiscal': data['clave_fiscal'].upper(),
                 'cajero': data['cajero'].upper(),
-                'monto_inicial': data['monto_inicial']
+                'monto_inicial': data['monto_inicial'],
+                'nro_turno': apertura.get('nro_turno') if apertura else None,
+                'registro': apertura.get('registro') if apertura else None
             },
             'error': None
         }), 201  # Código 201 para creación exitosa
@@ -110,9 +113,6 @@ def addApertura():
             'success': False,
             'error': 'Ocurrió un error interno. Consulte con el administrador.'
         }), 500  # Código 500 para errores internos del servidor
-
-
-
 
 
 
@@ -139,3 +139,15 @@ def anularApertura(id_apertura):
             'success': False,
             'error': 'Ocurrió un error interno. Consulte con el administrador.'
         }), 500
+
+
+# NUEVO ENDPOINT PARA OBTENER FECHA ACTUAL DEL SERVIDOR
+@aperapi.route('/aperturas/fecha_actual', methods=['GET'])
+def obtener_fecha_actual():
+    try:
+        now = datetime.now()
+        fecha_str = now.strftime('%d/%m/%Y %H:%M:%S')
+        return jsonify({'success': True, 'fecha_actual': fecha_str}), 200
+    except Exception as e:
+        app.logger.error(f"Error obteniendo fecha actual: {e}")
+        return jsonify({'success': False, 'error': 'Error al obtener la fecha actual'}), 500

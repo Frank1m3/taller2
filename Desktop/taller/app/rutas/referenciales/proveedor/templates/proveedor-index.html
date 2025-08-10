@@ -1,14 +1,11 @@
 {% extends 'base.html' %}
 
-{% block titulo %}
-Proveedores
-{% endblock %}
+{% block titulo %} Proveedores {% endblock %}
 
 {% block contenido %}
 <div class="container mt-4">
     <h3>Listar Proveedores</h3>
 
-    <!-- tarjeta -->
     <div class="card">
       <div class="card-header">
         <button type="button" class="btn btn-primary" id="btnAgregar">Agregar</button>
@@ -22,6 +19,7 @@ Proveedores
               <th>Razón Social</th>
               <th>Fecha de Registro</th>
               <th>Estado</th>
+              <th>Teléfono</th>
               <th>Acciones</th>
             </tr>
           </thead>
@@ -29,45 +27,42 @@ Proveedores
         </table>
       </div>
     </div>
-    <!-- /tarjeta -->
 
-    <!-- El formulario -->
-    <div class="modal" id="modalFormulario">
-      <div class="modal-dialog modal-dialog-centered">
+    <!-- Modal -->
+    <div class="modal" id="modalFormulario" tabindex="-1" role="dialog" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered" role="document">
         <div class="modal-content">
 
-          <!-- Modal Header -->
           <div class="modal-header">
             <h4 class="modal-title" id="modalTitle"></h4>
-            <button type="button" class="close" data-dismiss="modal">&times;</button>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">&times;</button>
           </div>
 
-          <!-- Modal body -->
           <div class="modal-body">
+            <input type="hidden" id="txtIdProveedor">
             <div class="form-group">
-              <input type="hidden" id="txtIdProveedor">
               <label for="txtRUC">RUC:</label>
-              <input type="text" class="form-control" placeholder="Ingrese el RUC" id="txtRUC">
+              <input type="text" class="form-control" placeholder="Ingrese el RUC" id="txtRUC" required>
             </div>
             <div class="form-group">
               <label for="txtRazonSocial">Razón Social:</label>
-              <input type="text" class="form-control" placeholder="Ingrese la razón social" id="txtRazonSocial">
-            </div>
-            <div class="form-group">
-              <label for="txtRegistro">Fecha de Registro:</label>
-              <input type="date" class="form-control" id="txtRegistro">
+              <input type="text" class="form-control" placeholder="Ingrese la razón social" id="txtRazonSocial" required>
             </div>
             <div class="form-group">
               <label for="txtEstado">Estado:</label>
-              <select class="form-control" id="txtEstado">
+              <select class="form-control" id="txtEstado" required>
+                <option value="">Seleccione un estado</option>
                 <option value="activo">Activo</option>
                 <option value="inactivo">Inactivo</option>
                 <option value="pendiente">Pendiente</option>
               </select>
             </div>
+            <div class="form-group">
+              <label for="txtTelefono">Teléfono:</label>
+              <input type="text" class="form-control" placeholder="Ingrese el teléfono" id="txtTelefono" required>
+            </div>
           </div>
 
-          <!-- Modal footer -->
           <div class="modal-footer">
             <button type="button" class="btn btn-primary" id="btnGuardar">Guardar</button>
             <button type="button" class="btn btn-danger" data-dismiss="modal">Cerrar</button>
@@ -76,195 +71,179 @@ Proveedores
         </div>
       </div>
     </div>
-
-    <div class="row mt-4 d-none" id="rowAlerta">
-        <div class="col col-md-12">
-            <div class="alert alert-success">
-                <strong>Registro Exitoso!</strong>
-                <div class="row" id="mostrarAlerta"></div>
-            </div>
-        </div>
-    </div>
 </div>
 {% endblock %}
 
 {% block js %}
 <script>
+  const apiBase = '/api/v1/proveedores';
+
   const initDatatable = () => {
     $('#tbl').DataTable({
       language: {
-        url: "{{ url_for('static', filename='vendor/datatables/es-ES.json') }}",
+        url: "{{ url_for('static', filename='vendor/datatables/es-ES.json') }}"
       },
-      ajax: '/api/v1/proveedores',
+      ajax: {
+        url: apiBase,
+        dataSrc: 'data',
+        error: function(xhr) {
+          Swal.fire('Error', 'No se pudo cargar la lista de proveedores.', 'error');
+        }
+      },
       columns: [
         { data: 'id_proveedor' },
         { data: 'ruc' },
         { data: 'razon_social' },
-        { data: 'registro' },
-        { data: 'estado', render: function(data) {
-          return data.charAt(0).toUpperCase() + data.slice(1);}
+        { data: 'registro' }, // solo mostrar
+        { 
+          data: 'estado',
+          render: data => data ? data.charAt(0).toUpperCase() + data.slice(1) : ""
         },
-        { data: function(row) {
-            return `<button type="button" name="btn_editar" class="btn btn-primary" data-id="${row.id_proveedor}">Editar</button>
-                    <button type="button" name="btn_eliminar" class="btn btn-danger" data-id="${row.id_proveedor}">Eliminar</button>`;
-          }
+        { data: 'telefono' },
+        {
+          data: null,
+          orderable: false,
+          render: row => `
+            <button type="button" name="btn_editar" class="btn btn-primary btn-sm" data-id="${row.id_proveedor}">Editar</button>
+            <button type="button" name="btn_eliminar" class="btn btn-danger btn-sm" data-id="${row.id_proveedor}">Eliminar</button>
+          `
         }
-      ]
+      ],
+      destroy: true
     });
-  }
+  };
+
+  const abrirModal = (titulo) => {
+    $('#modalTitle').text(titulo);
+    $('#modalFormulario').modal('show');
+  };
+
+  const limpiarFormulario = () => {
+    $('#txtIdProveedor').val('');
+    $('#txtRUC').val('');
+    $('#txtRazonSocial').val('');
+    $('#txtEstado').val('');
+    $('#txtTelefono').val('');
+  };
 
   const agregar = () => {
-    $('#btnAgregar').on('click', function(){
-      $('#modalTitle').text("Agregar un Proveedor");
-      $('#txtIdProveedor').val("");
-      $('#txtRUC').val("");
-      $('#txtRazonSocial').val("");
-      $('#txtRegistro').val("");
-      $('#txtEstado').val("");
-      $('#modalFormulario').modal();
+    $('#btnAgregar').on('click', () => {
+      limpiarFormulario();
+      abrirModal('Agregar un Proveedor');
     });
-  }
+  };
+
+  const validarFormulario = () => {
+    if (!$('#txtRUC').val().trim()) {
+      Swal.fire('Error', 'El campo RUC es obligatorio.', 'error');
+      return false;
+    }
+    if (!$('#txtRazonSocial').val().trim()) {
+      Swal.fire('Error', 'El campo Razón Social es obligatorio.', 'error');
+      return false;
+    }
+    if (!$('#txtEstado').val()) {
+      Swal.fire('Error', 'Debe seleccionar un Estado.', 'error');
+      return false;
+    }
+    if (!$('#txtTelefono').val().trim()) {
+      Swal.fire('Error', 'El campo Teléfono es obligatorio.', 'error');
+      return false;
+    }
+    return true;
+  };
 
   const guardar = () => {
-    $('#btnGuardar').on('click', function() {
+    $('#btnGuardar').on('click', () => {
+      if (!validarFormulario()) return;
+
       const idProveedor = $('#txtIdProveedor').val();
-      const nuevoRUC = $('#txtRUC').val();
-      const nuevaRazonSocial = $('#txtRazonSocial').val();
-      const nuevoRegistro = $('#txtRegistro').val();
-      const nuevoEstado = $('#txtEstado').val();
-      const tabla = $('#tbl').DataTable();
-  
       const proveedorData = {
-        ruc: nuevoRUC,
-        razon_social: nuevaRazonSocial,
-        registro: nuevoRegistro,
-        estado: nuevoEstado // Usamos el estado directamente como string
+        ruc: $('#txtRUC').val().trim(),
+        razon_social: $('#txtRazonSocial').val().trim(),
+        estado: $('#txtEstado').val(),
+        telefono: $('#txtTelefono').val().trim()
       };
-  
-      // Operación de actualización
-      if (idProveedor) {
-        fetch(`/api/v1/proveedores/${idProveedor}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(proveedorData)
-        })
-        .then(resp => resp.json())
-        .then(data => {
-          if (data && data.success) {
-            tabla.ajax.reload(); // Recarga la tabla
-            Swal.fire("Actualizado", "El proveedor ha sido actualizado correctamente.", "success");
-          } else {
-            Swal.fire("Error", data.error || "Error al actualizar el proveedor.", "error");
-          }
-        }).catch(err => {
-          console.error(err);
-          Swal.fire("Error", "Ocurrió un error al actualizar el proveedor.", "error");
-        });
-      } else { // Operación de agregar
-        fetch(`/api/v1/proveedores`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(proveedorData)
-        })
-        .then(resp => resp.json())
-        .then(data => {
-          if (data && data.success) {
-            tabla.ajax.reload(); // Recarga la tabla
-            Swal.fire("Guardado", "El proveedor ha sido agregado correctamente.", "success");
-          } else {
-            Swal.fire("Error", data.error || "Error al guardar el proveedor.", "error");
-          }
-        }).catch(err => {
-          console.error(err);
-          Swal.fire("Error", "Ocurrió un error al guardar el proveedor.", "error");
-        });
-      }
-      $('#modalFormulario').modal("hide"); // Cierra el modal
+      const tabla = $('#tbl').DataTable();
+
+      const url = idProveedor ? `${apiBase}/${idProveedor}` : apiBase;
+      const method = idProveedor ? 'PUT' : 'POST';
+
+      fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(proveedorData)
+      })
+      .then(resp => resp.ok ? resp.json() : Promise.reject(resp))
+      .then(data => {
+        if (data.success) {
+          tabla.ajax.reload(null, false);
+          Swal.fire('Éxito', idProveedor ? 'Proveedor actualizado con éxito.' : 'Proveedor agregado con éxito.', 'success');
+          $('#modalFormulario').modal('hide');
+        } else {
+          Swal.fire('Error', data.error || 'Error en la operación.', 'error');
+        }
+      })
+      .catch(() => Swal.fire('Error', 'Error de comunicación con el servidor.', 'error'));
     });
-  }
-  
+  };
 
   const editar = () => {
-    $('#tbl').on('click', 'button[name="btn_editar"]', function(){
-      Swal.fire({
-        title: "¿Deseas editar este registro?",
-        showCancelButton: true,
-        confirmButtonText: "Si",
-        cancelButtonText: `No`
-      }).then((result) => {
-        if (result.isConfirmed) {
-          $('#modalTitle').text("Editar un Proveedor");
-
-          const idProveedor = $(this).data('id');
-          $('#txtIdProveedor').val(idProveedor);
-
-          fetch(`/api/v1/proveedores/${idProveedor}`, {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json'
-            }
-          })
-          .then(resp => resp.json())
-          .then(data => {
-            $('#txtRUC').val(data.data.ruc);
-            $('#txtRazonSocial').val(data.data.razon_social);
-            $('#txtRegistro').val(data.data.registro);
-            $('#txtEstado').val(data.data.estado ? "true" : "false");
-            $('#modalFormulario').modal();
-          });
+    $('#tbl tbody').on('click', 'button[name="btn_editar"]', function() {
+      const idProveedor = $(this).data('id');
+      fetch(`${apiBase}/${idProveedor}`)
+      .then(resp => resp.ok ? resp.json() : Promise.reject(resp))
+      .then(data => {
+        if (data.success) {
+          limpiarFormulario();
+          abrirModal('Editar Proveedor');
+          const p = data.data;
+          $('#txtIdProveedor').val(p.id_proveedor);
+          $('#txtRUC').val(p.ruc);
+          $('#txtRazonSocial').val(p.razon_social);
+          $('#txtEstado').val(p.estado);
+          $('#txtTelefono').val(p.telefono);
+        } else {
+          Swal.fire('Error', data.error || 'No se encontró el proveedor.', 'error');
         }
-      });
+      })
+      .catch(() => Swal.fire('Error', 'Error de comunicación con el servidor.', 'error'));
     });
-  }
+  };
 
   const eliminar = () => {
-    $('#tbl').on('click', 'button[name="btn_eliminar"]', function(){
+    $('#tbl tbody').on('click', 'button[name="btn_eliminar"]', function() {
       const idProveedor = $(this).data('id');
       Swal.fire({
-        title: "¿Deseas eliminar este registro?",
+        title: '¿Está seguro de eliminar este proveedor?',
+        icon: 'warning',
         showCancelButton: true,
-        confirmButtonText: "Si",
-        cancelButtonText: `No`
-      }).then((result) => {
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+      }).then(result => {
         if (result.isConfirmed) {
-          fetch(`/api/v1/proveedores/${idProveedor}`, {
-            method: 'DELETE',
-            headers: {
-              'Content-Type': 'application/json'
+          fetch(`${apiBase}/${idProveedor}`, { method: 'DELETE' })
+          .then(resp => resp.ok ? resp.json() : Promise.reject(resp))
+          .then(data => {
+            if (data.success) {
+              $('#tbl').DataTable().ajax.reload(null, false);
+              Swal.fire('Eliminado', 'Proveedor eliminado correctamente.', 'success');
+            } else {
+              Swal.fire('Error', data.error || 'Error al eliminar proveedor.', 'error');
             }
           })
-          .then(resp => resp.json())
-          .then(data => {
-            if(data && !data.error && data.success) {
-              const fila = $(this).closest('tr');
-              const tabla = $('#tbl').DataTable();
-              tabla.row(fila).remove().draw();
-              Swal.fire("Eliminado", "", data.success);
-            } else {
-              Swal.fire(data.error);
-            }
-          }).catch(err => {
-            Swal.fire("Error", "Ocurrió un error al eliminar el proveedor.", "error");
-          });
+          .catch(() => Swal.fire('Error', 'Error de comunicación con el servidor.', 'error'));
         }
       });
     });
-  }
+  };
 
-  const addEvents = () => {
+  $(document).ready(() => {
+    initDatatable();
     agregar();
     guardar();
     editar();
     eliminar();
-  }
-
-  $(document).ready(function() {
-    initDatatable();
-    addEvents();
   });
 </script>
 {% endblock %}
