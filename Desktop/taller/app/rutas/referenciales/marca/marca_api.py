@@ -1,22 +1,20 @@
 from flask import Blueprint, request, jsonify, current_app as app
 from app.dao.referenciales.marca.MarcaDao import MarcaDao
+from app import csrf  # Importa csrf de tu app
 
 marcaapi = Blueprint('marcaapi', __name__)
 
-# Trae todas las marcas
+# Trae todas las marcas (GET no necesita csrf)
 @marcaapi.route('/marcas', methods=['GET'])
 def getMarcas():
     marcao = MarcaDao()
-
     try:
         marcas = marcao.getMarcas()
-
         return jsonify({
             'success': True,
             'data': marcas,
             'error': None
         }), 200
-
     except Exception as e:
         app.logger.error(f"Error al obtener todas las marcas: {str(e)}")
         return jsonify({
@@ -27,10 +25,8 @@ def getMarcas():
 @marcaapi.route('/marcas/<int:marca_id>', methods=['GET'])
 def getMarca(marca_id):
     marcao = MarcaDao()
-
     try:
         marca = marcao.getMarcaById(marca_id)
-
         if marca:
             return jsonify({
                 'success': True,
@@ -42,7 +38,6 @@ def getMarca(marca_id):
                 'success': False,
                 'error': 'No se encontró la marca con el ID proporcionado.'
             }), 404
-
     except Exception as e:
         app.logger.error(f"Error al obtener marca: {str(e)}")
         return jsonify({
@@ -50,16 +45,14 @@ def getMarca(marca_id):
             'error': 'Ocurrió un error interno. Consulte con el administrador.'
         }), 500
 
-# Agrega una nueva marca
+# Agrega una nueva marca (POST requiere csrf.exempt)
 @marcaapi.route('/marcas', methods=['POST'])
+@csrf.exempt
 def addMarca():
     data = request.get_json()
     marcao = MarcaDao()
 
-    # Validar que el JSON no esté vacío y tenga las propiedades necesarias
     campos_requeridos = ['descripcion']
-
-    # Verificar si faltan campos o son vacíos
     for campo in campos_requeridos:
         if campo not in data or data[campo] is None or len(data[campo].strip()) == 0:
             return jsonify({
@@ -85,15 +78,14 @@ def addMarca():
             'error': 'Ocurrió un error interno. Consulte con el administrador.'
         }), 500
 
+# Actualiza una marca (PUT requiere csrf.exempt)
 @marcaapi.route('/marcas/<int:marca_id>', methods=['PUT'])
+@csrf.exempt
 def updateMarca(marca_id):
     data = request.get_json()
     marcao = MarcaDao()
 
-    # Validar que el JSON no esté vacío y tenga las propiedades necesarias
     campos_requeridos = ['descripcion']
-
-    # Verificar si faltan campos o son vacíos
     for campo in campos_requeridos:
         if campo not in data or data[campo] is None or len(data[campo].strip()) == 0:
             return jsonify({
@@ -121,12 +113,12 @@ def updateMarca(marca_id):
             'error': 'Ocurrió un error interno. Consulte con el administrador.'
         }), 500
 
+# Elimina una marca (DELETE requiere csrf.exempt)
 @marcaapi.route('/marcas/<int:marca_id>', methods=['DELETE'])
+@csrf.exempt
 def deleteMarca(marca_id):
     marcao = MarcaDao()
-
     try:
-        # Usar el retorno de eliminarMarca para determinar el éxito
         if marcao.deleteMarca(marca_id):
             return jsonify({
                 'success': True,
@@ -138,7 +130,6 @@ def deleteMarca(marca_id):
                 'success': False,
                 'error': 'No se encontró la marca con el ID proporcionado o no se pudo eliminar.'
             }), 404
-
     except Exception as e:
         app.logger.error(f"Error al eliminar marca: {str(e)}")
         return jsonify({

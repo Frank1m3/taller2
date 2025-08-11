@@ -28,6 +28,7 @@ from app.rutas.referenciales.deposito.deposito_routes import depomod
 from app.rutas.referenciales.estado_civil.estado_civil_routes import estmod
 from app.rutas.referenciales.sexo.sexo_routes import sexomod
 from app.rutas.referenciales.marca.marca_routes import marcmod
+from app.rutas.referenciales.forma_pago.forma_pago_routes import formapago_mod
 from app.rutas.referenciales.apertura.apertura_routes import apermod
 
 # importar gestionar compras
@@ -52,6 +53,7 @@ app.register_blueprint(estmod, url_prefix=f'{modulo0}/estado_civil')
 app.register_blueprint(sexomod, url_prefix=f'{modulo0}/sexo')
 app.register_blueprint(marcmod, url_prefix=f'{modulo0}/marca')
 app.register_blueprint(apermod, url_prefix=f'{modulo0}/apertura')
+app.register_blueprint(formapago_mod, url_prefix=f'{modulo0}/formas_pago')
 
 # APIS v1
 from app.rutas.referenciales.ciudad.ciudad_api import ciuapi
@@ -68,6 +70,8 @@ from app.rutas.referenciales.proveedor.proveedor_api import provapi
 from app.rutas.referenciales.cliente.cliente_api import cliapi
 
 from app.rutas.referenciales.sucursal.sucursal_api import sucapi
+
+from app.rutas.referenciales.forma_pago.forma_pago_api import forma_pago_api
 
 from app.rutas.referenciales.deposito.deposito_api import depoapi
 
@@ -92,6 +96,7 @@ app.register_blueprint(estadocivilapi, url_prefix=apiversion1)
 app.register_blueprint(sexoapi, url_prefix=apiversion1)
 app.register_blueprint(marcaapi, url_prefix=apiversion1)
 app.register_blueprint(aperapi, url_prefix=apiversion1)
+app.register_blueprint(forma_pago_api, url_prefix=apiversion1)
 app.register_blueprint(pdcapi, url_prefix=f'{apiversion1}/{modulo1}/registrar-pedido-compras')
 
 # importar rutas y apis de cierre
