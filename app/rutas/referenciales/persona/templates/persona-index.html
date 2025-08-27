@@ -81,190 +81,159 @@ Personas
 
 {% block js %}
 <script>
-  const initDatatable = () => {
-    $('#tbl').DataTable({
-      language: {
-        url: "{{ url_for('static', filename='vendor/datatables/es-ES.json') }}",
-      },
-      ajax: {
-        url: '/api/v1/personas',
-        dataSrc: function(json) {
-          if(json.success) {
-            return json.data;
-          } else {
-            alert("Error al cargar datos: " + (json.error || "Error desconocido"));
-            return [];
-          }
-        }
-      },
-      columns: [
-        { data: 'id_persona' },
-        { data: 'nombres' },
-        { data: 'apellidos' },
-        { data: 'ci' },
-        { data: 'fechanac' },
-        { data: 'sexo' },
-        { data: function(row) {
-            return `
-              <button type="button" class="btn btn-primary btn-sm" name="btn_editar" data-id="${row.id_persona}">Editar</button>
-              <button type="button" class="btn btn-danger btn-sm" name="btn_eliminar" data-id="${row.id_persona}">Eliminar</button>
-            `;
-          }
-        }
-      ],
-      destroy: true,
-    });
-  };
+const CSRFToken = "{{ csrf_token() }}" || null;
 
-  const agregar = () => {
-    $('#btnAgregar').on('click', function(){
-      $('#modalTitle').text("Agregar una Persona");
-      $('#txtIdPersona').val("");
-      $('#txtNombre').val("");
-      $('#txtApellido').val("");
-      $('#txtCi').val("");
-      $('#txtFechanac').val("");
-      $('input[name="sexo"]').prop('checked', false);
-      $('#modalFormulario').modal('show');
-    });
-  };
+const initDatatable = () => {
+  $('#tbl').DataTable({
+    language: { url: "{{ url_for('static', filename='vendor/datatables/es-ES.json') }}" },
+    ajax: {
+      url: '/api/v1/personas',
+      dataSrc: json => json.success ? json.data : (() => { alert("Error al cargar datos"); return []; })()
+    },
+    columns: [
+      { data: 'id_persona' },
+      { data: 'nombres' },
+      { data: 'apellidos' },
+      { data: 'ci' },
+      { data: 'fechanac' },
+      { data: 'sexo' },
+      { data: row => `
+        <button class="btn btn-primary btn-sm" name="btn_editar" data-id="${row.id_persona}">Editar</button>
+        <button class="btn btn-danger btn-sm" name="btn_eliminar" data-id="${row.id_persona}">Eliminar</button>
+      `}
+    ],
+    destroy: true
+  });
+};
 
-  const guardar = () => {
-    $('#btnGuardar').on('click', function() {
-      const idPersona = $('#txtIdPersona').val();
-      const nuevoNombre = $('#txtNombre').val().trim();
-      const nuevoApellido = $('#txtApellido').val().trim();
-      const nuevoCi = $('#txtCi').val().trim();
-      const nuevaFechanac = $('#txtFechanac').val();
-      const nuevoSexo = $('input[name="sexo"]:checked').val();
+const agregar = () => {
+  $('#btnAgregar').click(() => {
+    $('#modalTitle').text("Agregar una Persona");
+    $('#txtIdPersona').val("");
+    $('#txtNombre, #txtApellido, #txtCi, #txtFechanac').val("");
+    $('input[name="sexo"]').prop('checked', false);
+    $('#modalFormulario').modal('show');
+  });
+};
 
-      if (!nuevoNombre || !nuevoApellido || !nuevoCi || !nuevaFechanac) {
-        Swal.fire("Error", "Complete todos los campos obligatorios", "error");
-        return;
-      }
+const guardar = () => {
+  $('#btnGuardar').click(() => {
+    const idPersona = $('#txtIdPersona').val();
+    const nuevoNombre = $('#txtNombre').val().trim();
+    const nuevoApellido = $('#txtApellido').val().trim();
+    const nuevoCi = $('#txtCi').val().trim();
+    const nuevaFechanac = $('#txtFechanac').val();
+    const nuevoSexo = $('input[name="sexo"]:checked').val();
 
-      if (!nuevoSexo) {
-        Swal.fire("Error", "Debe seleccionar el sexo", "error");
-        return;
-      }
+    if (!nuevoNombre || !nuevoApellido || !nuevoCi || !nuevaFechanac) {
+      Swal.fire("Error", "Complete todos los campos obligatorios", "error");
+      return;
+    }
+    if (!nuevoSexo) {
+      Swal.fire("Error", "Debe seleccionar el sexo", "error");
+      return;
+    }
+    const nombreApellidoRegex = /^[A-Za-zÁÉÍÓÚáéíóúÑñ ]+$/;
+    if (!nombreApellidoRegex.test(nuevoNombre)) {
+      Swal.fire("Error", "El nombre solo puede contener letras y espacios", "error");
+      return;
+    }
+    if (!nombreApellidoRegex.test(nuevoApellido)) {
+      Swal.fire("Error", "El apellido solo puede contener letras y espacios", "error");
+      return;
+    }
 
-      const personaData = {
-        nombres: nuevoNombre,
-        apellidos: nuevoApellido,
-        ci: nuevoCi,
-        fechanac: nuevaFechanac,
-        sexo: nuevoSexo
-      };
+    const personaData = {
+      nombres: nuevoNombre,
+      apellidos: nuevoApellido,
+      ci: nuevoCi,
+      fechanac: nuevaFechanac,
+      sexo: nuevoSexo
+    };
 
-      const tabla = $('#tbl').DataTable();
+    const tabla = $('#tbl').DataTable();
+    const url = idPersona ? `/api/v1/personas/${idPersona}` : '/api/v1/personas';
+    const method = idPersona ? 'PUT' : 'POST';
 
-      if (!idPersona) {
-        // Crear persona
-        fetch(`/api/v1/personas`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(personaData)
-        })
-        .then(resp => resp.json())
-        .then(data => {
-          if (data.success) {
-            Swal.fire("Éxito", "Persona creada con éxito", "success");
-            $('#modalFormulario').modal('hide');
-            tabla.ajax.reload(null, false);
-          } else {
-            Swal.fire("Error", data.error || "Error al crear persona", "error");
-          }
-        })
-        .catch(() => Swal.fire("Error", "Error de comunicación", "error"));
+    fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRFToken },
+      body: JSON.stringify(personaData)
+    })
+    .then(resp => resp.json())
+    .then(data => {
+      if (data.success) {
+        Swal.fire("Éxito", `Persona ${idPersona ? 'actualizada' : 'creada'} con éxito`, "success");
+        $('#modalFormulario').modal('hide');
+        tabla.ajax.reload(null, false);
       } else {
-        // Actualizar persona
-        personaData.id_persona = idPersona;
-        fetch(`/api/v1/personas/${idPersona}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(personaData)
-        })
-        .then(resp => resp.json())
-        .then(data => {
-          if (data.success) {
-            Swal.fire("Éxito", "Persona actualizada con éxito", "success");
-            $('#modalFormulario').modal('hide');
-            tabla.ajax.reload(null, false);
-          } else {
-            Swal.fire("Error", data.error || "Error al actualizar persona", "error");
-          }
-        })
-        .catch(() => Swal.fire("Error", "Error de comunicación", "error"));
+        // Mensaje genérico si falla (por ejemplo, duplicado de CI)
+        Swal.fire("Error", "No se pudo guardar la persona. Verifique los datos e intente nuevamente.", "error");
       }
-    });
-  };
+    })
+    .catch(() => Swal.fire("Error", "Error de comunicación", "error"));
+  });
+};
 
-  const editar = () => {
-    $('#tbl tbody').on('click', 'button[name="btn_editar"]', function() {
-      const id = $(this).data('id');
-      fetch(`/api/v1/personas/${id}`)
-        .then(resp => resp.json())
-        .then(data => {
-          if (data.success) {
-            const persona = data.data;
-            $('#modalTitle').text("Editar Persona");
-            $('#txtIdPersona').val(persona.id_persona);
-            $('#txtNombre').val(persona.nombres);
-            $('#txtApellido').val(persona.apellidos);
-            $('#txtCi').val(persona.ci);
-            $('#txtFechanac').val(persona.fechanac);
-            if (persona.sexo === 'M') {
-              $('#sexoMasculino').prop('checked', true);
-            } else if (persona.sexo === 'F') {
-              $('#sexoFemenino').prop('checked', true);
-            } else {
-              $('input[name="sexo"]').prop('checked', false);
-            }
-            $('#modalFormulario').modal('show');
-          } else {
-            Swal.fire("Error", "No se encontró la persona", "error");
-          }
-        })
-        .catch(() => Swal.fire("Error", "Error de comunicación", "error"));
-    });
-  };
+const editar = () => {
+  $('#tbl tbody').on('click', 'button[name="btn_editar"]', function() {
+    const id = $(this).data('id');
+    fetch(`/api/v1/personas/${id}`)
+      .then(resp => resp.json())
+      .then(data => {
+        if (data.success) {
+          const persona = data.data;
+          $('#modalTitle').text("Editar Persona");
+          $('#txtIdPersona').val(persona.id_persona);
+          $('#txtNombre').val(persona.nombres);
+          $('#txtApellido').val(persona.apellidos);
+          $('#txtCi').val(persona.ci);
+          $('#txtFechanac').val(persona.fechanac);
+          if (persona.sexo === 'M') $('#sexoMasculino').prop('checked', true);
+          else if (persona.sexo === 'F') $('#sexoFemenino').prop('checked', true);
+          else $('input[name="sexo"]').prop('checked', false);
+          $('#modalFormulario').modal('show');
+        } else {
+          Swal.fire("Error", "No se pudo obtener la persona", "error");
+        }
+      }).catch(() => Swal.fire("Error", "Error de comunicación", "error"));
+  });
+};
 
-  const eliminar = () => {
-    $('#tbl tbody').on('click', 'button[name="btn_eliminar"]', function() {
-      const id = $(this).data('id');
-      Swal.fire({
-        title: '¿Está seguro?',
-        text: `Eliminar persona ${id}`,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: 'Sí, eliminar',
-        cancelButtonText: 'Cancelar'
-      }).then((result) => {
-        if (result.isConfirmed) {
-          fetch(`/api/v1/personas/${id}`, {
-            method: 'DELETE',
-          })
+const eliminar = () => {
+  $('#tbl tbody').on('click', 'button[name="btn_eliminar"]', function() {
+    const id = $(this).data('id');
+    Swal.fire({
+      title: '¿Está seguro?',
+      text: `Eliminar persona ${id}`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        fetch(`/api/v1/personas/${id}`, { method: 'DELETE' })
           .then(resp => resp.json())
           .then(data => {
             if (data.success) {
-              Swal.fire("Éxito", data.mensaje, "success");
+              Swal.fire("Éxito", "Persona eliminada", "success");
               $('#tbl').DataTable().ajax.reload(null, false);
             } else {
-              Swal.fire("Error", data.error || "No se pudo eliminar", "error");
+              Swal.fire("Error", "No se pudo eliminar", "error");
             }
           })
           .catch(() => Swal.fire("Error", "Error de comunicación", "error"));
-        }
-      });
+      }
     });
-  };
-
-  $(document).ready(function() {
-    initDatatable();
-    agregar();
-    guardar();
-    editar();
-    eliminar();
   });
+};
+
+$(document).ready(() => {
+  initDatatable();
+  agregar();
+  guardar();
+  editar();
+  eliminar();
+});
 </script>
 {% endblock %}

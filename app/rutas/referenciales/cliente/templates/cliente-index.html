@@ -93,193 +93,217 @@ Clientes
 
 {% block js %}
 <script>
-  let idCliente = null;  // Variable global para controlar si estamos editando o creando
+let idCliente = null;  // Variable global para controlar si estamos editando o creando
 
-  const initDatatable = () => {
-    $('#tbl').DataTable({
-      language: {
-        url: "{{ url_for('static', filename='vendor/datatables/es-ES.json') }}",
-      },
-      ajax: '/api/v1/clientes',
-      columns: [
-        { data: 'nombre' },
-        { data: 'apellido' },
-        { data: 'cedula' },
-        { data: 'direccion' },
-        { data: 'telefono' },
-        { 
-          data: 'fecha_registro',
-          render: function(data) {
-            if (!data) return '';
-            // Asume formato ISO 8601, muestra YYYY-MM-DD
-            return data.substring(0, 10);
-          }
-        },
-        { 
-          data: null,
-          orderable: false,
-          render: function(row) {
-            return `
-              <button type="button" name="btn_editar" class="btn btn-primary" data-id="${row.id_cliente}">Editar</button>
-              <button type="button" name="btn_eliminar" class="btn btn-danger" data-id="${row.id_cliente}">Eliminar</button>
-            `;
-          }
+const initDatatable = () => {
+  $('#tbl').DataTable({
+    language: {
+      url: "{{ url_for('static', filename='vendor/datatables/es-ES.json') }}",
+    },
+    ajax: '/api/v1/clientes',
+    columns: [
+      { data: 'nombre' },
+      { data: 'apellido' },
+      { data: 'cedula' },
+      { data: 'direccion' },
+      { data: 'telefono' },
+      { 
+        data: 'fecha_registro',
+        render: function(data) {
+          if (!data) return '';
+          return data.substring(0, 10); // YYYY-MM-DD
         }
-      ]
-    });
-  };
-
-  const agregar = () => {
-    $('#btnAgregar').on('click', function() {
-      idCliente = null;
-      $('#modalTitle').text("Agregar un Cliente");
-      $('#txtIdCliente').val('');
-      $('#txtNombre').val('');
-      $('#txtApellido').val('');
-      $('#txtCedula').val('');
-      $('#txtDireccion').val('');
-      $('#txtTelefono').val('');
-      $('#modalFormulario').modal('show');
-    });
-  };
-
-  const guardar = () => {
-    $('#btnGuardar').on('click', function() {
-      const nuevoNombre = $('#txtNombre').val().trim();
-      const nuevoApellido = $('#txtApellido').val().trim();
-      const nuevaCedula = $('#txtCedula').val().trim();
-      const nuevaDireccion = $('#txtDireccion').val().trim();
-      const nuevoTelefono = $('#txtTelefono').val().trim();
-
-      if (!nuevoNombre || !nuevoApellido || !nuevaCedula || !nuevaDireccion || !nuevoTelefono) {
-        Swal.fire("Error", "Todos los campos son obligatorios.", "warning");
-        return;
+      },
+      { 
+        data: null,
+        orderable: false,
+        render: function(row) {
+          return `
+            <button type="button" name="btn_editar" class="btn btn-primary" data-id="${row.id_cliente}">Editar</button>
+            <button type="button" name="btn_eliminar" class="btn btn-danger" data-id="${row.id_cliente}">Eliminar</button>
+          `;
+        }
       }
+    ]
+  });
+};
 
-      const clienteData = {
-        nombre: nuevoNombre,
-        apellido: nuevoApellido,
-        cedula: nuevaCedula,
-        direccion: nuevaDireccion,
-        telefono: nuevoTelefono
-      };
+const agregar = () => {
+  $('#btnAgregar').on('click', function() {
+    idCliente = null;
+    $('#modalTitle').text("Agregar un Cliente");
+    $('#txtIdCliente').val('');
+    $('#txtNombre').val('');
+    $('#txtApellido').val('');
+    $('#txtCedula').val('');
+    $('#txtDireccion').val('');
+    $('#txtTelefono').val('');
+    $('#modalFormulario').modal('show');
+  });
+};
 
-      const tabla = $('#tbl').DataTable();
+const guardar = () => {
+  $('#btnGuardar').on('click', function() {
+    const nuevoNombre = $('#txtNombre').val().trim();
+    const nuevoApellido = $('#txtApellido').val().trim();
+    const nuevaCedula = $('#txtCedula').val().trim();
+    const nuevaDireccion = $('#txtDireccion').val().trim();
+    const nuevoTelefono = $('#txtTelefono').val().trim();
 
-      if (idCliente) {
-        // Actualizar
-        fetch(`/api/v1/clientes/${idCliente}`, {
-          method: 'PUT',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify(clienteData)
-        })
-        .then(resp => resp.json())
-        .then(data => {
-          if(data && data.success) {
-            tabla.ajax.reload();
-            Swal.fire("Actualizado", "El cliente ha sido actualizado correctamente.", "success");
-          } else {
-            Swal.fire("Error", data.error || "Error al actualizar.", "error");
-          }
-        })
-        .catch(err => {
-          console.error(err);
-          Swal.fire("Error", "Ocurrió un error al actualizar el cliente.", "error");
-        });
-      } else {
-        // Crear
-        fetch(`/api/v1/clientes`, {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify(clienteData)
-        })
-        .then(resp => resp.json())
-        .then(data => {
-          if(data && data.success) {
-            tabla.ajax.reload();
-            Swal.fire("Guardado", "El cliente ha sido agregado correctamente.", "success");
-          } else {
-            Swal.fire("Error", data.error || "Error al guardar.", "error");
-          }
-        })
-        .catch(err => {
-          console.error(err);
-          Swal.fire("Error", "Ocurrió un error al guardar el cliente.", "error");
-        });
-      }
+    // Validaciones con regex
+    const regexNombre = /^[A-Za-zÁÉÍÓÚáéíóúÑñ ]+$/;
+    const regexNumeros = /^[0-9]+$/;
+    const regexDireccion = /^[A-Za-z0-9ÁÉÍÓÚáéíóúÑñ .,#-]+$/;
 
-      $('#modalFormulario').modal('hide');
-    });
-  };
+    if (!nuevoNombre || !regexNombre.test(nuevoNombre)) {
+      Swal.fire("Error", "El nombre es obligatorio y solo puede contener letras.", "warning");
+      return;
+    }
 
-  const editar = () => {
-    $('#tbl').on('click', 'button[name="btn_editar"]', function() {
-      idCliente = $(this).data('id');
-      $('#modalTitle').text("Editar un Cliente");
+    if (!nuevoApellido || !regexNombre.test(nuevoApellido)) {
+      Swal.fire("Error", "El apellido es obligatorio y solo puede contener letras.", "warning");
+      return;
+    }
+
+    if (!nuevaCedula || !regexNumeros.test(nuevaCedula)) {
+      Swal.fire("Error", "La cédula es obligatoria y solo puede contener números.", "warning");
+      return;
+    }
+
+    if (!nuevaDireccion || !regexDireccion.test(nuevaDireccion)) {
+      Swal.fire("Error", "La dirección es obligatoria y solo puede contener letras, números y . , # -", "warning");
+      return;
+    }
+
+    if (!nuevoTelefono || !regexNumeros.test(nuevoTelefono)) {
+      Swal.fire("Error", "El teléfono es obligatorio y solo puede contener números.", "warning");
+      return;
+    }
+
+    const clienteData = {
+      nombre: nuevoNombre,
+      apellido: nuevoApellido,
+      cedula: nuevaCedula,
+      direccion: nuevaDireccion,
+      telefono: nuevoTelefono
+    };
+
+    const tabla = $('#tbl').DataTable();
+
+    if (idCliente) {
+      // Actualizar
       fetch(`/api/v1/clientes/${idCliente}`, {
-        method: 'GET',
-        headers: {'Content-Type': 'application/json'}
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(clienteData)
       })
       .then(resp => resp.json())
       .then(data => {
-        if (data && data.success && data.data) {
-          const cliente = data.data;
-          $('#txtIdCliente').val(cliente.id_cliente);
-          $('#txtNombre').val(cliente.nombre);
-          $('#txtApellido').val(cliente.apellido);
-          $('#txtCedula').val(cliente.cedula);
-          $('#txtDireccion').val(cliente.direccion);
-          $('#txtTelefono').val(cliente.telefono);
-          $('#modalFormulario').modal('show');
+        if(data && data.success) {
+          tabla.ajax.reload();
+          Swal.fire("Actualizado", "El cliente ha sido actualizado correctamente.", "success");
         } else {
-          Swal.fire("Error", data.error || "No se encontró el cliente.", "error");
+          Swal.fire("Error", data.error || "Error al actualizar.", "error");
         }
       })
       .catch(err => {
         console.error(err);
-        Swal.fire("Error", "Error al cargar datos del cliente.", "error");
+        Swal.fire("Error", "Ocurrió un error al actualizar el cliente.", "error");
       });
-    });
-  };
-
-  const eliminar = () => {
-    $('#tbl').on('click', 'button[name="btn_eliminar"]', function() {
-      const id = $(this).data('id');
-      Swal.fire({
-        title: "¿Deseas eliminar este registro?",
-        showCancelButton: true,
-        confirmButtonText: "Sí",
-        cancelButtonText: "No"
-      }).then((result) => {
-        if (result.isConfirmed) {
-          fetch(`/api/v1/clientes/${id}`, {
-            method: 'DELETE',
-            headers: {'Content-Type': 'application/json'}
-          })
-          .then(resp => resp.json())
-          .then(data => {
-            if(data && data.success) {
-              $('#tbl').DataTable().ajax.reload();
-              Swal.fire("Eliminado", "El cliente ha sido eliminado correctamente.", "success");
-            } else {
-              Swal.fire("Error", data.error || "No se pudo eliminar.", "error");
-            }
-          })
-          .catch(err => {
-            console.error(err);
-            Swal.fire("Error", "Ocurrió un error al eliminar el cliente.", "error");
-          });
+    } else {
+      // Crear
+      fetch(`/api/v1/clientes`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(clienteData)
+      })
+      .then(resp => resp.json())
+      .then(data => {
+        if(data && data.success) {
+          tabla.ajax.reload();
+          Swal.fire("Guardado", "El cliente ha sido agregado correctamente.", "success");
+        } else {
+          Swal.fire("Error", data.error || "Error al guardar.", "error");
         }
+      })
+      .catch(err => {
+        console.error(err);
+        Swal.fire("Error", "Ocurrió un error al guardar el cliente.", "error");
       });
-    });
-  };
+    }
 
-  $(document).ready(() => {
-    initDatatable();
-    agregar();
-    guardar();
-    editar();
-    eliminar();
+    $('#modalFormulario').modal('hide');
   });
+};
+
+const editar = () => {
+  $('#tbl').on('click', 'button[name="btn_editar"]', function() {
+    idCliente = $(this).data('id');
+    $('#modalTitle').text("Editar un Cliente");
+    fetch(`/api/v1/clientes/${idCliente}`, {
+      method: 'GET',
+      headers: {'Content-Type': 'application/json'}
+    })
+    .then(resp => resp.json())
+    .then(data => {
+      if (data && data.success && data.data) {
+        const cliente = data.data;
+        $('#txtIdCliente').val(cliente.id_cliente);
+        $('#txtNombre').val(cliente.nombre);
+        $('#txtApellido').val(cliente.apellido);
+        $('#txtCedula').val(cliente.cedula);
+        $('#txtDireccion').val(cliente.direccion);
+        $('#txtTelefono').val(cliente.telefono);
+        $('#modalFormulario').modal('show');
+      } else {
+        Swal.fire("Error", data.error || "No se encontró el cliente.", "error");
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      Swal.fire("Error", "Error al cargar datos del cliente.", "error");
+    });
+  });
+};
+
+const eliminar = () => {
+  $('#tbl').on('click', 'button[name="btn_eliminar"]', function() {
+    const id = $(this).data('id');
+    Swal.fire({
+      title: "¿Deseas eliminar este registro?",
+      showCancelButton: true,
+      confirmButtonText: "Sí",
+      cancelButtonText: "No"
+    }).then((result) => {
+      if (result.isConfirmed) {
+        fetch(`/api/v1/clientes/${id}`, {
+          method: 'DELETE',
+          headers: {'Content-Type': 'application/json'}
+        })
+        .then(resp => resp.json())
+        .then(data => {
+          if(data && data.success) {
+            $('#tbl').DataTable().ajax.reload();
+            Swal.fire("Eliminado", "El cliente ha sido eliminado correctamente.", "success");
+          } else {
+            Swal.fire("Error", data.error || "No se pudo eliminar.", "error");
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          Swal.fire("Error", "Ocurrió un error al eliminar el cliente.", "error");
+        });
+      }
+    });
+  });
+};
+
+$(document).ready(() => {
+  initDatatable();
+  agregar();
+  guardar();
+  editar();
+  eliminar();
+});
 </script>
 {% endblock %}

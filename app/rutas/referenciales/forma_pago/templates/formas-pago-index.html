@@ -108,62 +108,67 @@ Formas de Pago
   }
 
   const guardar = () => {
-    $('#btnGuardar').on('click', function() {
-      const idFormaPago = $('#txtIdFormaPago').val();
-      const nuevaDescripcion = $('#txtDescripcion').val().trim();
-      const tabla = $('#tbl').DataTable();
+  $('#btnGuardar').on('click', function() {
+    const idFormaPago = $('#txtIdFormaPago').val();
+    const nuevaDescripcion = $('#txtDescripcion').val().trim();
+    const tabla = $('#tbl').DataTable();
 
-      if (!nuevaDescripcion) {
-        Swal.fire("Error", "La descripción no puede estar vacía.", "warning");
-        return;
-      }
+    // Validación: no vacío
+    if (!nuevaDescripcion) {
+      Swal.fire("Error", "La descripción no puede estar vacía.", "warning");
+      return;
+    }
 
-      if(idFormaPago) {
-        // update
-        fetch(`/api/v1/formas_pago/${idFormaPago}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ descripcion: nuevaDescripcion })
-        })
-        .then(resp => resp.json())
-        .then(data => {
-          if(data && data.success) {
-            tabla.ajax.reload(null, false);
-            Swal.fire("Actualizado", "La forma de pago ha sido actualizada correctamente.", "success");
-          } else {
-            Swal.fire("Error", data.error || "Error al actualizar.", "error");
-          }
-        }).catch(err => {
-          console.error(err);
-          Swal.fire("Error", "Ocurrió un error al actualizar la forma de pago.", "error");
-        });
-      } else {
-        // insert
-        fetch(`/api/v1/formas_pago`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ descripcion: nuevaDescripcion })
-        })
-        .then(resp => resp.json())
-        .then(data => {
-          if(data && data.success) {
-            tabla.ajax.reload(null, false);
-            Swal.fire("Agregado", "La forma de pago ha sido agregada correctamente.", "success");
-          } else {
-            Swal.fire("Error", data.error || "Error al guardar.", "error");
-          }
-        }).catch(err => {
-          console.error(err);
-          Swal.fire("Error", "Ocurrió un error al guardar la forma de pago.", "error");
-        });
-      }
-      $('#modalFormulario').modal("hide");
-    });
-  }
+    // Validación: solo letras, espacios y guiones
+    const regex = /^[A-Za-zÁÉÍÓÚáéíóúÑñ\s-]+$/;
+    if (!regex.test(nuevaDescripcion)) {
+      Swal.fire("Error", "La descripción solo puede contener letras, espacios y guiones.", "warning");
+      return;
+    }
+
+    if(idFormaPago) {
+      // update
+      fetch(`/api/v1/formas_pago/${idFormaPago}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ descripcion: nuevaDescripcion })
+      })
+      .then(resp => resp.json())
+      .then(data => {
+        if(data && data.success) {
+          tabla.ajax.reload(null, false);
+          Swal.fire("Actualizado", "La forma de pago ha sido actualizada correctamente.", "success");
+        } else {
+          Swal.fire("Error", data.error || "Error al actualizar.", "error");
+        }
+      }).catch(err => {
+        console.error(err);
+        Swal.fire("Error", "Ocurrió un error al actualizar la forma de pago.", "error");
+      });
+    } else {
+      // insert
+      fetch(`/api/v1/formas_pago`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ descripcion: nuevaDescripcion })
+      })
+      .then(resp => resp.json())
+      .then(data => {
+        if(data && data.success) {
+          tabla.ajax.reload(null, false);
+          Swal.fire("Agregado", "La forma de pago ha sido agregada correctamente.", "success");
+        } else {
+          Swal.fire("Error", data.error || "Error al guardar.", "error");
+        }
+      }).catch(err => {
+        console.error(err);
+        Swal.fire("Error", "Ocurrió un error al guardar la forma de pago.", "error");
+      });
+    }
+    $('#modalFormulario').modal("hide");
+  });
+};
+
 
   const editar = () => {
     $('#tbl').on('click', 'button[name="btn_editar"]', function(){

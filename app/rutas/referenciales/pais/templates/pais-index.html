@@ -70,172 +70,158 @@ Paises
 
 {% block js %}
 <script>
+const CSRFToken = "{{ csrf_token() }}" || null;
 
-  const CSRFToken = "{{ csrf_token() }}" || null;
-
-  const initDatatable = () => {
-    $('#tbl').DataTable({
-      language: {
-        url: "{{ url_for('static', filename='vendor/datatables/es-ES.json') }}",
-      },
-      ajax:'/api/v1/paises',  // Ruta modificada para los países
-      columns: [
-        { data: 'descripcion' },
-        { data: function(row) {
-            return `<button type="button" name="btn_editar" class="btn btn-primary" data-id="${row.id}">Editar</button>
-                    <button type="button" name="btn_eliminar" class="btn btn-danger" data-id="${row.id}">Eliminar</button>` 
-          }
+const initDatatable = () => {
+  $('#tbl').DataTable({
+    language: {
+      url: "{{ url_for('static', filename='vendor/datatables/es-ES.json') }}",
+    },
+    ajax:'/api/v1/paises',
+    columns: [
+      { data: 'descripcion' },
+      { data: function(row) {
+          return `<button type="button" name="btn_editar" class="btn btn-primary" data-id="${row.id}">Editar</button>
+                  <button type="button" name="btn_eliminar" class="btn btn-danger" data-id="${row.id}">Eliminar</button>` 
         }
-      ]
-    });
-  }
+      }
+    ]
+  });
+}
 
-  const agregar = () => {
-    $('#btnAgregar').on('click', function(){
-      $('#modalTitle').text("Agregar un País");
-      $('#txtIdPais').val("");
-      $('#txtDescripcion').val("");
-      $('#modalFormulario').modal();
-    });
-  }
+const agregar = () => {
+  $('#btnAgregar').on('click', function(){
+    $('#modalTitle').text("Agregar un País");
+    $('#txtIdPais').val("");
+    $('#txtDescripcion').val("");
+    $('#modalFormulario').modal();
+  });
+}
 
-  const guardar = () => {
-    $('#btnGuardar').on('click', function() {
-      const idPais = $('#txtIdPais').val();
-      const nuevaDescripcion = $('#txtDescripcion').val();
-      const tabla = $('#tbl').DataTable();
+const guardar = () => {
+  $('#btnGuardar').on('click', function() {
+    const idPais = $('#txtIdPais').val();
+    const nuevaDescripcion = $('#txtDescripcion').val().trim();
+    const tabla = $('#tbl').DataTable();
 
-      if(idPais) {
-        // Actualizar País
+    // Validación: solo letras, espacios, acentos y guiones
+    const regexDescripcion = /^[A-Za-zÁÉÍÓÚáéíóúÑñ -]+$/;
+    if(!nuevaDescripcion || !regexDescripcion.test(nuevaDescripcion)) {
+      Swal.fire("Error", "La descripción es obligatoria y solo puede contener letras, espacios o guiones.", "warning");
+      return;
+    }
+
+    const fetchOptions = {
+      method: idPais ? 'PUT' : 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': CSRFToken
+      },
+      body: JSON.stringify({ descripcion: nuevaDescripcion })
+    };
+
+    const url = idPais ? `/api/v1/paises/${idPais}` : '/api/v1/paises';
+
+    fetch(url, fetchOptions)
+      .then(resp => resp.json())
+      .then(data => {
+        if(data && !data.error && data.success) {
+          tabla.ajax.reload();
+          Swal.fire(idPais ? "Actualizado" : "Guardado", 
+                    `El país ha sido ${idPais ? 'actualizado' : 'agregado'} correctamente.`, 
+                    "success");
+        } else {
+          Swal.fire("Error", data.error || "Ocurrió un error.", "error");
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        Swal.fire("Error", `Ocurrió un error al ${idPais ? 'actualizar' : 'guardar'} el país.`, "error");
+      });
+
+    $('#txtDescripcion').val("");
+    $('#modalFormulario').modal("hide");
+  });
+}
+
+const editar = () => {
+  $('#tbl').on('click', 'button[name="btn_editar"]',function(){
+    Swal.fire({
+      title: "¿Deseas editar este registro?",
+      showCancelButton: true,
+      confirmButtonText: "Sí",
+      cancelButtonText: "No"
+    }).then((result) => {
+      if(result.isConfirmed) {
+        const idPais = $(this).data('id');
+        $('#txtIdPais').val(idPais);
+        $('#modalTitle').text("Editar un País");
+
         fetch(`/api/v1/paises/${idPais}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': CSRFToken
-          }, 
-          body: JSON.stringify({ descripcion: nuevaDescripcion })
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' }
         })
         .then(resp => resp.json())
         .then(data => {
-          if (data && !data.error && data.success) {
-            tabla.ajax.reload();
-            Swal.fire("Actualizado", "El país ha sido actualizado correctamente.", "success");
+          if (data && data.data) {
+            $('#txtDescripcion').val(data.data.descripcion);
+            $('#modalFormulario').modal();
           } else {
-            Swal.fire(data.error || "Error desconocido.");
+            Swal.fire("Error", "País no encontrado.", "error");
           }
-        }).catch(err => {
-          console.error(err);
-          Swal.fire("Error", "Ocurrió un error al actualizar el país.", "error");
-        });
-      } else {
-        // Insertar País
-        fetch(`/api/v1/paises`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': CSRFToken
-          }, 
-          body: JSON.stringify({ descripcion: nuevaDescripcion })
-        })
-        .then(resp => resp.json())
-        .then(data => {
-          if (data && !data.error && data.success) {
-            tabla.ajax.reload();
-            Swal.fire("Agregado", "El país ha sido agregado correctamente.", "success");
-          } else {
-            Swal.fire(data.error || "Error desconocido.");
-          }
-        }).catch(err => {
-          console.error(err);
-          Swal.fire("Error", "Ocurrió un error al guardar el país.", "error");
         });
       }
-
-      $('#txtDescripcion').val("");
-      $('#modalFormulario').modal("hide");
     });
-  }
-
-  const editar = () => {
-    $('#tbl').on('click', 'button[name="btn_editar"]',function(){
-      Swal.fire({
-        title: "¿Deseas editar este registro?",
-        showCancelButton: true,
-        confirmButtonText: "Si",
-        cancelButtonText: `No`
-      }).then((result) => {
-        if (result.isConfirmed) {
-          $('#modalTitle').text("Editar un País");
-
-          const idPais = $(this).data('id');
-          $('#txtIdPais').val(idPais);
-
-          fetch(`/api/v1/paises/${idPais}`, {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json'
-            }
-          })
-          .then(resp => resp.json())
-          .then(data => {
-            if (data && data.data) {
-              $('#txtDescripcion').val(data.data.descripcion);
-              $('#modalFormulario').modal();
-            } else {
-              Swal.fire("Error", "País no encontrado.", "error");
-            }
-          });
-        }
-      });
-    });
-  }
-
-  const eliminar = () => {
-    $('#tbl').on('click', 'button[name="btn_eliminar"]',function(){
-      const idPais = $(this).data('id');
-      Swal.fire({
-        title: "¿Deseas eliminar este registro?",
-        showCancelButton: true,
-        confirmButtonText: "Si",
-        cancelButtonText: `No`
-      }).then((result) => {
-        if (result.isConfirmed) {
-          fetch(`/api/v1/paises/${idPais}`, {
-            method: 'DELETE',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-CSRFToken': CSRFToken
-            }
-          })
-          .then(resp => resp.json())
-          .then(data => {
-            if (data && data.success) {
-              const fila = $(this).closest('tr');
-              const tabla = $('#tbl').DataTable();
-              tabla.row(fila).remove().draw();
-              Swal.fire("Eliminado", "", "success");
-            } else {
-              Swal.fire(data.error || "Error desconocido.");
-            }
-          }).catch(err => {
-            console.error(err);
-            Swal.fire("Error", "Ocurrió un error al eliminar el país.", "error");
-          });
-        }
-      });
-    });
-  }
-
-  const addEvents = () => {
-    agregar();
-    guardar();
-    editar();
-    eliminar();
-  }
-
-  $(function() {
-    initDatatable();
-    addEvents();
   });
+}
+
+const eliminar = () => {
+  $('#tbl').on('click', 'button[name="btn_eliminar"]',function(){
+    const idPais = $(this).data('id');
+    Swal.fire({
+      title: "¿Deseas eliminar este registro?",
+      showCancelButton: true,
+      confirmButtonText: "Sí",
+      cancelButtonText: "No"
+    }).then((result) => {
+      if(result.isConfirmed) {
+        fetch(`/api/v1/paises/${idPais}`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': CSRFToken
+          }
+        })
+        .then(resp => resp.json())
+        .then(data => {
+          if(data && data.success) {
+            const fila = $(this).closest('tr');
+            const tabla = $('#tbl').DataTable();
+            tabla.row(fila).remove().draw();
+            Swal.fire("Eliminado", "", "success");
+          } else {
+            Swal.fire("Error", data.error || "No se pudo eliminar.", "error");
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          Swal.fire("Error", "Ocurrió un error al eliminar el país.", "error");
+        });
+      }
+    });
+  });
+}
+
+const addEvents = () => {
+  agregar();
+  guardar();
+  editar();
+  eliminar();
+}
+
+$(function() {
+  initDatatable();
+  addEvents();
+});
 </script>
 {% endblock %}

@@ -76,104 +76,69 @@
 
 {% block js %}
 <script>
-  const apiBase = '/api/v1/proveedores';
+const apiBase = '/api/v1/proveedores';
 
-  const initDatatable = () => {
-    $('#tbl').DataTable({
-      language: {
-        url: "{{ url_for('static', filename='vendor/datatables/es-ES.json') }}"
-      },
-      ajax: {
-        url: apiBase,
-        dataSrc: 'data',
-        error: function(xhr) {
-          Swal.fire('Error', 'No se pudo cargar la lista de proveedores.', 'error');
-        }
-      },
-      columns: [
-        { data: 'id_proveedor' },
-        { data: 'ruc' },
-        { data: 'razon_social' },
-        { data: 'registro' }, // solo mostrar
-        { 
-          data: 'estado',
-          render: data => data ? data.charAt(0).toUpperCase() + data.slice(1) : ""
-        },
-        { data: 'telefono' },
-        {
-          data: null,
-          orderable: false,
-          render: row => `
-            <button type="button" name="btn_editar" class="btn btn-primary btn-sm" data-id="${row.id_proveedor}">Editar</button>
-            <button type="button" name="btn_eliminar" class="btn btn-danger btn-sm" data-id="${row.id_proveedor}">Eliminar</button>
-          `
-        }
-      ],
-      destroy: true
-    });
-  };
+const initDatatable = () => {
+  $('#tbl').DataTable({
+    language: { url: "{{ url_for('static', filename='vendor/datatables/es-ES.json') }}" },
+    ajax: { url: apiBase, dataSrc: 'data', error: () => Swal.fire('Error', 'No se pudo cargar la lista de proveedores.', 'error') },
+    columns: [
+      { data: 'id_proveedor' },
+      { data: 'ruc' },
+      { data: 'razon_social' },
+      { data: 'registro' },
+      { data: row => row.estado ? row.estado.charAt(0).toUpperCase() + row.estado.slice(1) : "" },
+      { data: 'telefono' },
+      { data: null, orderable: false, render: row => `
+        <button type="button" name="btn_editar" class="btn btn-primary btn-sm" data-id="${row.id_proveedor}">Editar</button>
+        <button type="button" name="btn_eliminar" class="btn btn-danger btn-sm" data-id="${row.id_proveedor}">Eliminar</button>
+      `}
+    ],
+    destroy: true
+  });
+};
 
-  const abrirModal = (titulo) => {
-    $('#modalTitle').text(titulo);
-    $('#modalFormulario').modal('show');
-  };
+const abrirModal = (titulo) => { $('#modalTitle').text(titulo); $('#modalFormulario').modal('show'); };
+const limpiarFormulario = () => { $('#txtIdProveedor, #txtRUC, #txtRazonSocial, #txtEstado, #txtTelefono').val(''); };
+const agregar = () => { $('#btnAgregar').on('click', () => { limpiarFormulario(); abrirModal('Agregar un Proveedor'); }); };
 
-  const limpiarFormulario = () => {
-    $('#txtIdProveedor').val('');
-    $('#txtRUC').val('');
-    $('#txtRazonSocial').val('');
-    $('#txtEstado').val('');
-    $('#txtTelefono').val('');
-  };
+const validarFormulario = () => {
+  const ruc = $('#txtRUC').val().trim();
+  const razon = $('#txtRazonSocial').val().trim();
+  const estado = $('#txtEstado').val();
+  const telefono = $('#txtTelefono').val().trim();
 
-  const agregar = () => {
-    $('#btnAgregar').on('click', () => {
-      limpiarFormulario();
-      abrirModal('Agregar un Proveedor');
-    });
-  };
+  if (!ruc) { Swal.fire('Error', 'El campo RUC es obligatorio.', 'error'); return false; }
+  if (!/^\d+$/.test(ruc)) { Swal.fire('Error', 'El RUC solo puede contener números.', 'error'); return false; }
 
-  const validarFormulario = () => {
-    if (!$('#txtRUC').val().trim()) {
-      Swal.fire('Error', 'El campo RUC es obligatorio.', 'error');
-      return false;
-    }
-    if (!$('#txtRazonSocial').val().trim()) {
-      Swal.fire('Error', 'El campo Razón Social es obligatorio.', 'error');
-      return false;
-    }
-    if (!$('#txtEstado').val()) {
-      Swal.fire('Error', 'Debe seleccionar un Estado.', 'error');
-      return false;
-    }
-    if (!$('#txtTelefono').val().trim()) {
-      Swal.fire('Error', 'El campo Teléfono es obligatorio.', 'error');
-      return false;
-    }
-    return true;
-  };
+  if (!razon) { Swal.fire('Error', 'El campo Razón Social es obligatorio.', 'error'); return false; }
+  if (!/^[A-Za-zÁÉÍÓÚáéíóúÑñ ]+$/.test(razon)) { Swal.fire('Error', 'La Razón Social solo puede contener letras y espacios.', 'error'); return false; }
 
-  const guardar = () => {
-    $('#btnGuardar').on('click', () => {
-      if (!validarFormulario()) return;
+  if (!estado) { Swal.fire('Error', 'Debe seleccionar un Estado.', 'error'); return false; }
 
-      const idProveedor = $('#txtIdProveedor').val();
-      const proveedorData = {
-        ruc: $('#txtRUC').val().trim(),
-        razon_social: $('#txtRazonSocial').val().trim(),
-        estado: $('#txtEstado').val(),
-        telefono: $('#txtTelefono').val().trim()
-      };
-      const tabla = $('#tbl').DataTable();
+  if (!telefono) { Swal.fire('Error', 'El campo Teléfono es obligatorio.', 'error'); return false; }
+  if (!/^\d+$/.test(telefono)) { Swal.fire('Error', 'El Teléfono solo puede contener números.', 'error'); return false; }
 
-      const url = idProveedor ? `${apiBase}/${idProveedor}` : apiBase;
-      const method = idProveedor ? 'PUT' : 'POST';
+  return true;
+};
 
-      fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(proveedorData)
-      })
+const guardar = () => {
+  $('#btnGuardar').on('click', () => {
+    if (!validarFormulario()) return;
+
+    const idProveedor = $('#txtIdProveedor').val();
+    const proveedorData = {
+      ruc: $('#txtRUC').val().trim(),
+      razon_social: $('#txtRazonSocial').val().trim(),
+      estado: $('#txtEstado').val(),
+      telefono: $('#txtTelefono').val().trim()
+    };
+    const tabla = $('#tbl').DataTable();
+
+    const url = idProveedor ? `${apiBase}/${idProveedor}` : apiBase;
+    const method = idProveedor ? 'PUT' : 'POST';
+
+    fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(proveedorData) })
       .then(resp => resp.ok ? resp.json() : Promise.reject(resp))
       .then(data => {
         if (data.success) {
@@ -185,13 +150,13 @@
         }
       })
       .catch(() => Swal.fire('Error', 'Error de comunicación con el servidor.', 'error'));
-    });
-  };
+  });
+};
 
-  const editar = () => {
-    $('#tbl tbody').on('click', 'button[name="btn_editar"]', function() {
-      const idProveedor = $(this).data('id');
-      fetch(`${apiBase}/${idProveedor}`)
+const editar = () => {
+  $('#tbl tbody').on('click', 'button[name="btn_editar"]', function() {
+    const idProveedor = $(this).data('id');
+    fetch(`${apiBase}/${idProveedor}`)
       .then(resp => resp.ok ? resp.json() : Promise.reject(resp))
       .then(data => {
         if (data.success) {
@@ -208,21 +173,21 @@
         }
       })
       .catch(() => Swal.fire('Error', 'Error de comunicación con el servidor.', 'error'));
-    });
-  };
+  });
+};
 
-  const eliminar = () => {
-    $('#tbl tbody').on('click', 'button[name="btn_eliminar"]', function() {
-      const idProveedor = $(this).data('id');
-      Swal.fire({
-        title: '¿Está seguro de eliminar este proveedor?',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: 'Sí, eliminar',
-        cancelButtonText: 'Cancelar'
-      }).then(result => {
-        if (result.isConfirmed) {
-          fetch(`${apiBase}/${idProveedor}`, { method: 'DELETE' })
+const eliminar = () => {
+  $('#tbl tbody').on('click', 'button[name="btn_eliminar"]', function() {
+    const idProveedor = $(this).data('id');
+    Swal.fire({
+      title: '¿Está seguro de eliminar este proveedor?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar'
+    }).then(result => {
+      if (result.isConfirmed) {
+        fetch(`${apiBase}/${idProveedor}`, { method: 'DELETE' })
           .then(resp => resp.ok ? resp.json() : Promise.reject(resp))
           .then(data => {
             if (data.success) {
@@ -233,17 +198,17 @@
             }
           })
           .catch(() => Swal.fire('Error', 'Error de comunicación con el servidor.', 'error'));
-        }
-      });
+      }
     });
-  };
-
-  $(document).ready(() => {
-    initDatatable();
-    agregar();
-    guardar();
-    editar();
-    eliminar();
   });
+};
+
+$(document).ready(() => {
+  initDatatable();
+  agregar();
+  guardar();
+  editar();
+  eliminar();
+});
 </script>
 {% endblock %}
