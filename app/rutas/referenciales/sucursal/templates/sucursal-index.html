@@ -1,0 +1,199 @@
+{% extends 'base.html' %}
+
+{% block titulo %}
+Sucursales
+{% endblock %}
+
+{% block contenido %}
+<div class="container mt-4">
+    <h3>Listar Sucursales</h3>
+
+    <div class="card">
+      <div class="card-header">
+        <button type="button" class="btn btn-primary" id="btnAgregar">Agregar</button>
+      </div>
+      <div class="card-body">
+        <table class="table table-striped" id="tbl">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Descripción</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="modal" id="modalFormulario">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+
+          <div class="modal-header">
+            <h4 class="modal-title" id="modalTitle"></h4>
+            <button type="button" class="close" data-dismiss="modal">&times;</button>
+          </div>
+
+          <div class="modal-body">
+            <input type="hidden" id="txtIdSucursal">
+            <div class="form-group">
+              <label for="txtDescripcion">Descripción:</label>
+              <input type="text" class="form-control" placeholder="Ingrese la descripción" id="txtDescripcion" autofocus>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-primary" id="btnGuardar">Guardar</button>
+            <button type="button" class="btn btn-danger" data-dismiss="modal">Cerrar</button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block js %}
+<script>
+  const apiBaseUrl = '/api/v1/sucursales';
+
+  const initDatatable = () => {
+    $('#tbl').DataTable({
+      language: { url: "{{ url_for('static', filename='vendor/datatables/es-ES.json') }}" },
+      ajax: apiBaseUrl,
+      columns: [
+        { data: 'id_sucursal' },
+        { data: 'descripcion' },
+        { data: row => `
+          <button type="button" name="btn_editar" class="btn btn-primary" data-id="${row.id_sucursal}">Editar</button>
+          <button type="button" name="btn_eliminar" class="btn btn-danger" data-id="${row.id_sucursal}">Eliminar</button>
+        `}
+      ]
+    });
+  }
+
+  const agregar = () => {
+    $('#btnAgregar').click(() => {
+      $('#modalTitle').text("Agregar una Sucursal");
+      $('#txtIdSucursal').val("");
+      $('#txtDescripcion').val("").focus();
+      $('#modalFormulario').modal('show');
+    });
+  }
+
+  const guardar = () => {
+    $('#btnGuardar').click(() => {
+      const idSucursal = $('#txtIdSucursal').val();
+      const descripcion = $('#txtDescripcion').val().trim();
+      const tabla = $('#tbl').DataTable();
+
+      if (!descripcion) {
+        Swal.fire("Error", "La descripción es obligatoria.", "warning");
+        return;
+      }
+
+      const data = { descripcion };
+
+      const url = idSucursal ? `${apiBaseUrl}/${idSucursal}` : apiBaseUrl;
+      const method = idSucursal ? 'PUT' : 'POST';
+
+      fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      })
+      .then(res => res.json())
+      .then(response => {
+        if(response && !response.error && response.success) {
+          tabla.ajax.reload(null, false);
+          Swal.fire(idSucursal ? "Actualizado" : "Guardado", `Sucursal ${idSucursal ? 'actualizada' : 'agregada'} correctamente.`, "success");
+          $('#modalFormulario').modal('hide');
+        } else {
+          Swal.fire("Error", response.error || "Error desconocido", "error");
+        }
+      })
+      .catch(() => {
+        Swal.fire("Error", `Ocurrió un error al ${idSucursal ? 'actualizar' : 'guardar'} la sucursal.`, "error");
+      });
+    });
+  }
+
+  const editar = () => {
+    $('#tbl').on('click', 'button[name="btn_editar"]', function(){
+      const idSucursal = $(this).data('id');
+
+      Swal.fire({
+        title: "¿Deseas editar este registro?",
+        showCancelButton: true,
+        confirmButtonText: "Sí",
+        cancelButtonText: "No"
+      }).then(result => {
+        if (result.isConfirmed) {
+          fetch(`${apiBaseUrl}/${idSucursal}`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+          })
+          .then(res => res.json())
+          .then(data => {
+            if(data && data.data){
+              $('#modalTitle').text("Editar una Sucursal");
+              $('#txtIdSucursal').val(idSucursal);
+              $('#txtDescripcion').val(data.data.descripcion);
+              $('#modalFormulario').modal('show');
+            } else {
+              Swal.fire("Error", "No se pudo cargar la sucursal.", "error");
+            }
+          });
+        }
+      });
+    });
+  }
+
+  const eliminar = () => {
+    $('#tbl').on('click', 'button[name="btn_eliminar"]', function(){
+      const idSucursal = $(this).data('id');
+      const boton = this;
+
+      Swal.fire({
+        title: "¿Deseas eliminar este registro?",
+        showCancelButton: true,
+        confirmButtonText: "Sí",
+        cancelButtonText: "No"
+      }).then(result => {
+        if(result.isConfirmed){
+          fetch(`${apiBaseUrl}/${idSucursal}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' }
+          })
+          .then(res => res.json())
+          .then(data => {
+            if(data && !data.error && data.success){
+              const tabla = $('#tbl').DataTable();
+              tabla.row($(boton).closest('tr')).remove().draw();
+              Swal.fire("Eliminado", "Sucursal eliminada correctamente.", "success");
+            } else {
+              Swal.fire("Error", data.error || "Error desconocido", "error");
+            }
+          })
+          .catch(() => {
+            Swal.fire("Error", "Ocurrió un error al eliminar la sucursal.", "error");
+          });
+        }
+      });
+    });
+  }
+
+  const addEvents = () => {
+    agregar();
+    guardar();
+    editar();
+    eliminar();
+  }
+
+  $(document).ready(() => {
+    initDatatable();
+    addEvents();
+  });
+</script>
+{% endblock %}
